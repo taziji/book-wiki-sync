@@ -1,0 +1,32 @@
+name = "book-wiki-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[limits]
+cpu_ms = 300000
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[vars]
+# Set these to your vault sync R2 destination. Keep access keys as secrets.
+VAULT_R2_ENDPOINT = "https://<account-id>.r2.cloudflarestorage.com"
+VAULT_R2_BUCKET = "<your-vault-sync-bucket>"
+VAULT_R2_PREFIX = ""
+
+[[r2_buckets]]
+binding = "BOOK_BUCKET"
+bucket_name = "book-wiki"
+
+[[kv_namespaces]]
+binding = "STATUS_KV"
+id = "<your-kv-namespace-id>"
+
+[[queues.producers]]
+queue = "book-process-queue"
+binding = "BOOK_QUEUE"
+
+[[queues.consumers]]
+queue = "book-process-queue"
+max_batch_size = 1

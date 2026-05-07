@@ -1,0 +1,28 @@
+.book-wiki-sync-view {
+	padding: 12px;
+}
+
+.book-wiki-sync-view .crm-file-name {
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 16px;
+	word-break: break-all;
+}
+
+.book-wiki-sync-view .crm-file-name .crm-prefix {
+	color: var(--text-muted);
+	font-weight: 400;
+}
+
+.book-wiki-sync-view .crm-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.book-wiki-sync-view .crm-status {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 12px;
+	text-align: center;
+}

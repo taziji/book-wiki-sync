@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Book Wiki Sync 将 PDF 转换为互相链接的 Obsidian 图书 Wiki。">
+  <title>Book Wiki Sync - 将 PDF 转换为 Obsidian 图书 Wiki</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #131313;
+      --surface-low: #1c1b1b;
+      --surface-mid: #201f1f;
+      --surface-high: #2a2a2a;
+      --surface-higher: #353534;
+      --text: #e5e2e1;
+      --muted: #ccc3d8;
+      --faint: #958da1;
+      --line: #4a4455;
+      --primary: #d2bbff;
+      --primary-strong: #7c3aed;
+      --primary-text: #ede0ff;
+      --primary-dark: #25005a;
+      --ok: #86efac;
+      --warn: #fde68a;
+      --shadow: rgba(124, 58, 237, 0.28);
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, a.button { font: inherit; }
+
+    .page {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(124, 58, 237, 0.18), transparent 32rem),
+        radial-gradient(circle at 80% 18%, rgba(183, 200, 225, 0.08), transparent 28rem),
+        var(--bg);
+    }
+
+    .wrap { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+    .muted { color: var(--muted); }
+    .faint { color: var(--faint); }
+    .accent { color: var(--primary); }
+
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(19, 19, 19, 0.84);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-inner {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--primary); }
+    .brand-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid rgba(210, 187, 255, 0.45); border-radius: 6px; background: rgba(124, 58, 237, 0.18); font-size: 13px; }
+
+    .nav { display: flex; align-items: center; gap: 24px; }
+    .nav a { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav a:hover, .nav a.active { color: var(--primary); }
+
+    .actions { display: flex; align-items: center; gap: 12px; }
+    .lang-toggle { display: flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: rgba(32, 31, 31, 0.8); }
+    .lang-toggle button { border: 0; color: var(--muted); background: transparent; padding: 7px 11px; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 700; }
+    .lang-toggle button.active { background: var(--primary-strong); color: white; }
+
+    main { padding-top: 72px; }
+    section { padding: 72px 0; }
+
+    .hero { position: relative; overflow: hidden; padding: 96px 0 88px; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 0.92fr); gap: 56px; align-items: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid rgba(210, 187, 255, 0.32); border-radius: 4px; background: rgba(124, 58, 237, 0.18); color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    h1 { margin: 20px 0 18px; max-width: 650px; font-size: clamp(40px, 7vw, 72px); line-height: 1.04; letter-spacing: -0.055em; }
+    .lead { max-width: 570px; margin: 0 0 34px; color: var(--muted); font-size: clamp(18px, 2.2vw, 22px); line-height: 1.62; }
+    .inspiration { max-width: 620px; margin: -12px 0 28px; padding: 14px 16px; border: 1px solid rgba(210, 187, 255, 0.32); border-radius: 10px; background: rgba(124, 58, 237, 0.1); color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .inspiration a { color: var(--primary); font-weight: 750; border-bottom: 1px solid rgba(210, 187, 255, 0.45); }
+    .inspiration a:hover { border-bottom-color: var(--primary); }
+    .button-row { display: flex; flex-wrap: wrap; gap: 14px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 22px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; font-weight: 750; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
+    .button:hover { transform: translateY(-1px); border-color: var(--primary); }
+    .button.primary { border-color: transparent; background: var(--primary-strong); color: white; box-shadow: 0 18px 54px rgba(124, 58, 237, 0.28); }
+    .button.secondary { background: rgba(32, 31, 31, 0.7); color: var(--text); }
+
+    .mock-card { position: relative; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(180deg, var(--surface-high), var(--surface-mid)); padding: 18px; overflow: hidden; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42); }
+    .graph-bg::before { content: ""; position: absolute; inset: 0; opacity: 0.16; background-image: radial-gradient(#696272 1px, transparent 1px); background-size: 30px 30px; pointer-events: none; }
+    .window-bar { position: relative; display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .dots { display: flex; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; opacity: 0.72; }
+    .dot.red { background: #f87171; } .dot.yellow { background: #facc15; } .dot.green { background: #4ade80; }
+    .pipeline { position: relative; display: grid; grid-template-columns: 0.8fr 0.42fr 1.8fr; gap: 14px; align-items: center; padding: 32px 0 18px; }
+    .file-icon { width: 74px; height: 92px; margin: 0 auto 12px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-higher); color: var(--primary); font-weight: 900; }
+    .connector { height: 1px; background: rgba(210, 187, 255, 0.38); position: relative; }
+    .connector span { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); padding: 4px 8px; background: var(--surface-high); color: var(--primary); font-size: 10px; letter-spacing: 0.08em; }
+    .connector::after { content: ""; position: absolute; right: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 16px var(--primary); }
+    .screen-shot { width: min(100%, 390px); height: auto; display: block; margin: 0 auto; border: 1px solid rgba(210, 187, 255, 0.5); border-radius: 16px; box-shadow: 0 0 28px var(--shadow); background: var(--surface); }
+    .center { text-align: center; }
+
+    .section-alt { background: var(--surface-low); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .section-dark { background: #0e0e0e; }
+    h2 { margin: 0 0 14px; font-size: clamp(30px, 4vw, 46px); line-height: 1.14; letter-spacing: -0.035em; }
+    h3 { margin: 0 0 10px; font-size: 22px; line-height: 1.32; }
+    h4 { margin: 0 0 8px; font-size: 20px; }
+    p { line-height: 1.65; }
+
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 34px; }
+    .panel { border: 1px solid var(--line); border-radius: 14px; background: rgba(19, 19, 19, 0.74); padding: 22px; }
+    .panel:hover { border-color: rgba(210, 187, 255, 0.6); }
+    .icon-box { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-higher); color: var(--primary); font-size: 12px; font-weight: 900; }
+    .small-label { color: var(--muted); font-size: 12px; line-height: 1.55; letter-spacing: 0.04em; }
+
+    .preview-grid { display: grid; grid-template-columns: 0.45fr 1fr; gap: 28px; align-items: stretch; }
+    .file-tree { min-height: 360px; }
+    .tree-title { display: flex; gap: 8px; align-items: center; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--line); color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .tree-list { color: var(--muted); font-size: 14px; line-height: 1.8; }
+    .tree-indent { margin-left: 14px; padding-left: 14px; border-left: 1px solid var(--line); }
+    .tree-item { padding: 3px 6px; border-radius: 4px; }
+    .tree-item.active { color: var(--primary); background: rgba(124, 58, 237, 0.12); }
+    .note { position: relative; overflow: hidden; background: var(--surface-high); }
+    .note::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), transparent); }
+    .note-inner { max-width: 720px; margin: 0 auto; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 24px; }
+    .tag { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: var(--surface-higher); font-size: 11px; }
+    .tag.primary { color: var(--primary); border-color: rgba(210, 187, 255, 0.35); background: rgba(124, 58, 237, 0.12); }
+    .quote { margin: 22px 0; padding: 16px 18px; border-left: 4px solid var(--primary); background: rgba(124, 58, 237, 0.1); color: var(--text); font-style: italic; }
+
+    .value-grid { display: grid; grid-template-columns: 1fr 0.85fr; gap: 54px; align-items: center; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .feature-card { min-height: 178px; }
+
+    .architecture { overflow-x: auto; }
+    .arch-row { min-width: 920px; display: grid; grid-template-columns: 150px 1fr 230px 1fr 150px; gap: 24px; align-items: center; }
+    .arch-node { min-height: 130px; display: grid; place-items: center; text-align: center; border: 2px solid var(--primary); border-radius: 999px; background: var(--surface); color: var(--primary); font-weight: 800; }
+    .arch-node.square { border-radius: 12px; background: var(--primary-strong); color: white; box-shadow: 0 0 44px rgba(124, 58, 237, 0.4); }
+    .arch-worker { border: 1px solid var(--line); border-radius: 10px; background: rgba(53, 53, 52, 0.42); padding: 18px; text-align: center; }
+    .arch-line { position: relative; height: 1px; background: var(--line); }
+    .arch-line span { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); padding: 4px 8px; background: #0e0e0e; color: var(--faint); font-size: 10px; white-space: nowrap; }
+    .stack { margin-top: 14px; display: grid; gap: 6px; }
+    .stack div { border: 1px solid var(--line); border-radius: 5px; background: var(--surface); padding: 6px; color: var(--muted); font-size: 11px; }
+
+    .limits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 54px; }
+    .number-list { list-style: none; padding: 0; margin: 24px 0 0; }
+    .number-list li { display: flex; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+    .number-list li:last-child { border-bottom: 0; }
+    .number { color: var(--primary); }
+    .bullet-list { margin: 0; padding-left: 20px; color: var(--muted); }
+    .bullet-list li { margin: 12px 0; }
+
+    .cta { position: relative; overflow: hidden; border-radius: 28px; background: var(--primary-strong); color: white; text-align: center; padding: 70px 28px; }
+    .cta h2 { max-width: 800px; margin: 0 auto 18px; color: white; }
+    .cta p { max-width: 700px; margin: 0 auto 32px; color: rgba(255,255,255,0.78); font-size: 18px; }
+    .cta .button.primary { background: white; color: var(--primary-strong); box-shadow: none; }
+    .cta .button.secondary { background: transparent; color: white; border-color: rgba(255,255,255,0.65); }
+
+    footer { padding: 44px 0; border-top: 1px solid var(--line); background: var(--surface-low); }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 18px; color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .copyright { color: var(--faint); font-size: 12px; }
+
+    @media (max-width: 900px) {
+      .nav { display: none; }
+      .hero-grid, .preview-grid, .value-grid, .limits-grid { grid-template-columns: 1fr; }
+      .steps, .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero { padding-top: 72px; }
+      .screen-shot { width: min(100%, 420px); }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+
+    @media (max-width: 560px) {
+      .wrap { width: min(100% - 28px, 1180px); }
+      .topbar-inner { height: auto; min-height: 68px; flex-wrap: wrap; padding: 12px 0; }
+      main { padding-top: 92px; }
+      section { padding: 54px 0; }
+      .hero { padding-top: 54px; }
+      .steps, .feature-grid, .mini-grid, .pipeline { grid-template-columns: 1fr; }
+      .connector { display: none; }
+      .button { width: 100%; }
+      .actions { margin-left: auto; }
+      .brand { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="wrap topbar-inner">
+        <a class="brand" href="#top" aria-label="Book Wiki Sync">
+          <span class="brand-mark mono">BWS</span>
+          <span>Book Wiki Sync</span>
+        </a>
+        <nav class="nav" aria-label="Primary navigation">
+          <a class="active" href="#top" data-i18n="nav.home">首页</a>
+          <a href="#how" data-i18n="nav.how">工作方式</a>
+          <a href="#features" data-i18n="nav.features">功能</a>
+          <a href="#docs" data-i18n="nav.docs">文档</a>
+        </nav>
+        <div class="actions">
+          <div class="lang-toggle" aria-label="Language selector">
+            <button type="button" data-lang="zh" class="active">中文</button>
+            <button type="button" data-lang="en">EN</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <span class="eyebrow mono">BETA v0.8.2</span>
+            <h1 data-i18n="hero.title">把 PDF 变成互相链接的 Obsidian 图书 Wiki</h1>
+            <p class="lead" data-i18n="hero.lead">为深度阅读自动搭建知识结构。从本地库上传 PDF 到 Cloudflare，用 LLM 生成章节、人物、地点、主题和双链笔记，再同步回你的 Obsidian。</p>
+            <p class="inspiration" data-i18n="hero.inspiration">灵感来自 Andrej Karpathy 的 <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener noreferrer">LLM Wiki</a> 想法：不要只让模型总结一本书，而是把它变成可浏览、可链接、可持续扩展的知识网站。</p>
+            <div class="button-row">
+              <a class="button primary" href="#" data-i18n="hero.github">查看 GitHub</a>
+              <a class="button secondary" href="#docs" data-i18n="hero.guide">阅读部署指南</a>
+            </div>
+          </div>
+
+          <div class="mock-card graph-bg" aria-label="Book Wiki Sync pipeline preview">
+            <div class="window-bar">
+              <div class="dots" aria-hidden="true">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <span class="mono faint" style="font-size: 11px;">PIPELINE_VISUALIZER.HTML</span>
+            </div>
+            <div class="pipeline">
+              <div class="center">
+                <div class="file-icon mono">PDF</div>
+                <span class="small-label mono" data-i18n="visual.input">输入</span>
+              </div>
+              <div class="connector"><span class="mono" data-i18n="visual.syncing">同步中</span></div>
+              <div class="center">
+                <img class="screen-shot" src="screen.png" alt="Book Wiki Sync generated Obsidian wiki preview">
+                <div class="small-label mono" data-i18n="visual.output">双链图谱</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="how">
+        <div class="wrap center">
+          <h2 data-i18n="how.title">自动化阅读闭环</h2>
+          <p class="muted" data-i18n="how.lead">从 Obsidian 里的一个右键动作开始，后台完成上传、处理和同步。</p>
+          <div class="steps">
+            <article class="panel">
+              <div class="icon-box mono">01</div>
+              <h3 data-i18n="how.step1.title">触发</h3>
+              <p class="small-label mono" data-i18n="how.step1.body">在 Obsidian 文件列表中右键 PDF</p>
+            </article>
+            <article class="panel">
+              <div class="icon-box mono">02</div>
+              <h3 data-i18n="how.step2.title">上传</h3>
+              <p class="small-label mono" data-i18n="how.step2.body">Worker 将原始文件写入 Cloudflare R2</p>
+            </article>
+            <article class="panel">
+              <div class="icon-box mono">03</div>
+              <h3 data-i18n="how.step3.title">处理</h3>
+              <p class="small-label mono" data-i18n="how.step3.body">LLM 提取实体、关系、章节和主题</p>
+            </article>
+            <article class="panel">
+              <div class="icon-box mono">04</div>
+              <h3 data-i18n="how.step4.title">同步</h3>
+              <p class="small-label mono" data-i18n="how.step4.body">生成的 Wiki 笔记回写到你的库</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap preview-grid">
+          <aside class="panel file-tree">
+            <div class="tree-title mono" data-i18n="creates.treeTitle">Vault / Book_Wikis</div>
+            <div class="tree-list mono">
+              <div class="tree-item">活着</div>
+              <div class="tree-indent">
+                <div class="tree-item active">福贵.md</div>
+                <div class="tree-item">家珍.md</div>
+                <div class="tree-item">苦难与命运.md</div>
+                <div class="tree-item">source.md</div>
+                <div class="tree-item">章节/第01章.md</div>
+              </div>
+            </div>
+          </aside>
+          <article class="panel note">
+            <div class="note-inner">
+              <h2 data-i18n="creates.noteTitle">福贵</h2>
+              <div class="tag-row mono">
+                <span class="tag primary" data-i18n="creates.tag1">人物</span>
+                <span class="tag" data-i18n="creates.tag2">重要性：主要</span>
+              </div>
+              <p class="muted" data-i18n="creates.noteBody">福贵是《[[活着]]》中的核心人物。生成笔记会把他与 [[家珍]]、[[有庆]]、[[凤霞]]、土地、饥荒和时代变迁等节点连接起来，形成可继续阅读和扩展的 Obsidian 图谱。</p>
+              <div class="quote" data-i18n="creates.quote">“人是为了活着本身而活着，而不是为了活着之外的任何事物所活着。”</div>
+              <h3 data-i18n="creates.relationships">关联</h3>
+              <ul class="muted">
+                <li data-i18n="creates.rel1">丈夫：[[家珍]]</li>
+                <li data-i18n="creates.rel2">主题：[[苦难与命运]]</li>
+                <li data-i18n="creates.rel3">贯穿全书的叙事见证者</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-dark">
+        <div class="wrap value-grid">
+          <div>
+            <h2 data-i18n="value.title">为图书 Wiki 构建，<span class="accent">不只是摘要。</span></h2>
+            <p class="muted" data-i18n="value.body1">普通 AI 工具会总结。Book Wiki Sync 会建构。它把人物、地点、概念和章节拆成原子笔记，并保留一本书真正有价值的连接网络。</p>
+            <p class="muted" data-i18n="value.body2">最终结果不是一篇长摘要，而是一组能直接融入 Zettelkasten 或第二大脑工作流的双链笔记。</p>
+          </div>
+          <div class="mini-grid">
+            <article class="panel">
+              <div class="icon-box mono">LINK</div>
+              <h3 data-i18n="value.card1.title">关系化</h3>
+              <p class="small-label mono" data-i18n="value.card1.body">每个实体都是节点，每次提及都可以成为 wikilink。</p>
+            </article>
+            <article class="panel">
+              <div class="icon-box mono">ATOM</div>
+              <h3 data-i18n="value.card2.title">原子化</h3>
+              <p class="small-label mono" data-i18n="value.card2.body">小而聚焦的笔记，方便引用、嵌入和重组。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-dark" id="docs">
+        <div class="wrap">
+          <div class="center" style="margin-bottom: 34px;">
+            <h2 data-i18n="arch.title">技术架构</h2>
+            <p class="mono accent" style="font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;" data-i18n="arch.lead">Edge-first processing pipeline</p>
+          </div>
+          <div class="panel architecture">
+            <div class="arch-row">
+              <div class="arch-node mono">OBSIDIAN</div>
+              <div class="arch-line"><span class="mono">HTTPS / POST</span></div>
+              <div class="arch-worker">
+                <strong data-i18n="arch.worker">Cloudflare Worker</strong>
+                <div class="stack mono">
+                  <div>R2 Storage</div>
+                  <div>KV Status</div>
+                  <div>Queues</div>
+                </div>
+              </div>
+              <div class="arch-line"><span class="mono">CHAT COMPLETIONS</span></div>
+              <div class="arch-node square mono">LLM</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="features">
+        <div class="wrap feature-grid">
+          <article class="panel feature-card"><div class="icon-box mono">PDF</div><h3 data-i18n="features.f1.title">快速转换</h3><p class="muted" data-i18n="features.f1.body">PDF 转 Markdown-ish source.md，保留可检查的中间文本。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">CJK</div><h3 data-i18n="features.f2.title">中文优化</h3><p class="muted" data-i18n="features.f2.body">面向中文书籍、人名、章节标题和 Wiki 格式。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">[[ ]]</div><h3 data-i18n="features.f3.title">自动双链</h3><p class="muted" data-i18n="features.f3.body">用 Obsidian wikilink 语法交叉引用实体和主题。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">R2</div><h3 data-i18n="features.f4.title">R2 持久化</h3><p class="muted" data-i18n="features.f4.body">原始文件、任务状态和输出都在你的 Cloudflare 账户中。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">LONG</div><h3 data-i18n="features.f5.title">长书处理</h3><p class="muted" data-i18n="features.f5.body">长 PDF 会拆分为适合 LLM 的章节或逻辑块。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">UI</div><h3 data-i18n="features.f6.title">Obsidian 插件</h3><p class="muted" data-i18n="features.f6.body">从文件菜单触发处理，也支持章节已读标记。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">KEY</div><h3 data-i18n="features.f7.title">自托管</h3><p class="muted" data-i18n="features.f7.body">运行在你自己的 Cloudflare 和 LLM API Key 上。</p></article>
+          <article class="panel feature-card"><div class="icon-box mono">MD</div><h3 data-i18n="features.f8.title">模板化输出</h3><p class="muted" data-i18n="features.f8.body">生成章节、人物、地点、主题、部卷和索引笔记。</p></article>
+        </div>
+      </section>
+
+      <section class="section-alt">
+        <div class="wrap limits-grid">
+          <div>
+            <h2><span class="accent">OK</span> <span data-i18n="req.title">运行要求</span></h2>
+            <ul class="number-list">
+              <li><span class="number mono">01</span><div><h4 data-i18n="req.r1.title">Cloudflare 账户</h4><p class="muted" data-i18n="req.r1.body">需要启用 Workers、R2、KV 和 Queues。</p></div></li>
+              <li><span class="number mono">02</span><div><h4 data-i18n="req.r2.title">LLM API Key</h4><p class="muted" data-i18n="req.r2.body">支持 OpenAI-compatible Chat Completions 接口。</p></div></li>
+              <li><span class="number mono">03</span><div><h4 data-i18n="req.r3.title">Obsidian Desktop</h4><p class="muted" data-i18n="req.r3.body">通过社区插件在本地库中触发和同步。</p></div></li>
+            </ul>
+          </div>
+          <div>
+            <h2><span class="accent">NOTE</span> <span data-i18n="limits.title">当前限制</span></h2>
+            <div class="panel">
+              <ul class="bullet-list">
+                <li data-i18n="limits.l1">PDF 必须包含可提取文本；暂不内置 OCR。</li>
+                <li data-i18n="limits.l2">长书会产生较高 token 成本，取决于你的模型供应商。</li>
+                <li data-i18n="limits.l3">首次部署 Worker 需要基础命令行操作。</li>
+                <li data-i18n="limits.l4">当前重点是 PDF 图书 Wiki 生成和库同步。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <div class="cta graph-bg">
+            <h2 data-i18n="cta.title">开始构建你的私人图书知识图谱</h2>
+            <p data-i18n="cta.body">把结构化笔记交给自动化流程，让你把时间花在阅读、连接和思考上。</p>
+            <div class="button-row" style="justify-content: center;">
+              <a class="button primary" href="#" data-i18n="cta.deploy">部署到 Cloudflare</a>
+              <a class="button secondary" href="#docs" data-i18n="cta.docs">查看文档</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap footer-inner">
+        <div class="brand"><span class="brand-mark mono">BWS</span><span>Book Wiki Sync</span></div>
+        <div class="footer-links mono">
+          <a href="#docs" data-i18n="footer.docs">文档</a>
+          <a href="#" data-i18n="footer.github">GitHub</a>
+          <a href="#" data-i18n="footer.community">社区</a>
+          <a href="#" data-i18n="footer.privacy">隐私</a>
+        </div>
+        <p class="copyright mono">© 2026 Book Wiki Sync. MIT License.</p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const translations = {
+      zh: {
+        "meta.title": "Book Wiki Sync - 将 PDF 转换为 Obsidian 图书 Wiki",
+        "nav.home": "首页",
+        "nav.how": "工作方式",
+        "nav.features": "功能",
+        "nav.docs": "文档",
+        "hero.title": "把 PDF 变成互相链接的 Obsidian 图书 Wiki",
+        "hero.lead": "为深度阅读自动搭建知识结构。从本地库上传 PDF 到 Cloudflare，用 LLM 生成章节、人物、地点、主题和双链笔记，再同步回你的 Obsidian。",
+        "hero.inspiration": "灵感来自 Andrej Karpathy 的 <a href=\"https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f\" target=\"_blank\" rel=\"noopener noreferrer\">LLM Wiki</a> 想法：不要只让模型总结一本书，而是把它变成可浏览、可链接、可持续扩展的知识网站。",
+        "hero.github": "查看 GitHub",
+        "hero.guide": "阅读部署指南",
+        "visual.input": "输入",
+        "visual.syncing": "同步中",
+        "visual.output": "双链图谱",
+        "how.title": "自动化阅读闭环",
+        "how.lead": "从 Obsidian 里的一个右键动作开始，后台完成上传、处理和同步。",
+        "how.step1.title": "触发",
+        "how.step1.body": "在 Obsidian 文件列表中右键 PDF",
+        "how.step2.title": "上传",
+        "how.step2.body": "Worker 将原始文件写入 Cloudflare R2",
+        "how.step3.title": "处理",
+        "how.step3.body": "LLM 提取实体、关系、章节和主题",
+        "how.step4.title": "同步",
+        "how.step4.body": "生成的 Wiki 笔记回写到你的库",
+        "creates.treeTitle": "Vault / Book_Wikis",
+        "creates.noteTitle": "福贵",
+        "creates.tag1": "人物",
+        "creates.tag2": "重要性：主要",
+        "creates.noteBody": "福贵是《[[活着]]》中的核心人物。生成笔记会把他与 [[家珍]]、[[有庆]]、[[凤霞]]、土地、饥荒和时代变迁等节点连接起来，形成可继续阅读和扩展的 Obsidian 图谱。",
+        "creates.quote": "“人是为了活着本身而活着，而不是为了活着之外的任何事物所活着。”",
+        "creates.relationships": "关联",
+        "creates.rel1": "丈夫：[[家珍]]",
+        "creates.rel2": "主题：[[苦难与命运]]",
+        "creates.rel3": "贯穿全书的叙事见证者",
+        "value.title": "为图书 Wiki 构建，<span class=\"accent\">不只是摘要。</span>",
+        "value.body1": "受 Karpathy 的 LLM Wiki 启发，Book Wiki Sync 的目标不是生成一次性的摘要，而是建构一本书的可浏览知识空间。它把人物、地点、概念和章节拆成原子笔记，并保留一本书真正有价值的连接网络。",
+        "value.body2": "最终结果不是一篇长摘要，而是一组能直接融入 Zettelkasten 或第二大脑工作流的双链笔记。",
+        "value.card1.title": "关系化",
+        "value.card1.body": "每个实体都是节点，每次提及都可以成为 wikilink。",
+        "value.card2.title": "原子化",
+        "value.card2.body": "小而聚焦的笔记，方便引用、嵌入和重组。",
+        "arch.title": "技术架构",
+        "arch.lead": "Edge-first processing pipeline",
+        "arch.worker": "Cloudflare Worker",
+        "features.f1.title": "快速转换",
+        "features.f1.body": "PDF 转 Markdown-ish source.md，保留可检查的中间文本。",
+        "features.f2.title": "中文优化",
+        "features.f2.body": "面向中文书籍、人名、章节标题和 Wiki 格式。",
+        "features.f3.title": "自动双链",
+        "features.f3.body": "用 Obsidian wikilink 语法交叉引用实体和主题。",
+        "features.f4.title": "R2 持久化",
+        "features.f4.body": "原始文件、任务状态和输出都在你的 Cloudflare 账户中。",
+        "features.f5.title": "长书处理",
+        "features.f5.body": "长 PDF 会拆分为适合 LLM 的章节或逻辑块。",
+        "features.f6.title": "Obsidian 插件",
+        "features.f6.body": "从文件菜单触发处理，也支持章节已读标记。",
+        "features.f7.title": "自托管",
+        "features.f7.body": "运行在你自己的 Cloudflare 和 LLM API Key 上。",
+        "features.f8.title": "模板化输出",
+        "features.f8.body": "生成章节、人物、地点、主题、部卷和索引笔记。",
+        "req.title": "运行要求",
+        "req.r1.title": "Cloudflare 账户",
+        "req.r1.body": "需要启用 Workers、R2、KV 和 Queues。",
+        "req.r2.title": "LLM API Key",
+        "req.r2.body": "支持 OpenAI-compatible Chat Completions 接口。",
+        "req.r3.title": "Obsidian Desktop",
+        "req.r3.body": "通过社区插件在本地库中触发和同步。",
+        "limits.title": "当前限制",
+        "limits.l1": "PDF 必须包含可提取文本；暂不内置 OCR。",
+        "limits.l2": "长书会产生较高 token 成本，取决于你的模型供应商。",
+        "limits.l3": "首次部署 Worker 需要基础命令行操作。",
+        "limits.l4": "当前重点是 PDF 图书 Wiki 生成和库同步。",
+        "cta.title": "开始构建你的私人图书知识图谱",
+        "cta.body": "把结构化笔记交给自动化流程，让你把时间花在阅读、连接和思考上。",
+        "cta.deploy": "部署到 Cloudflare",
+        "cta.docs": "查看文档",
+        "footer.docs": "文档",
+        "footer.github": "GitHub",
+        "footer.community": "社区",
+        "footer.privacy": "隐私"
+      },
+      en: {
+        "meta.title": "Book Wiki Sync - Turn PDFs into linked Obsidian book wikis",
+        "nav.home": "Home",
+        "nav.how": "How it works",
+        "nav.features": "Features",
+        "nav.docs": "Docs",
+        "hero.title": "Turn PDFs into linked Obsidian book wikis",
+        "hero.lead": "Automate the structure work behind deep reading. Upload PDFs from your local vault to Cloudflare, generate chapters, entities, themes, and wikilinks with an LLM, then sync the notes back to Obsidian.",
+        "hero.inspiration": "Inspired by Andrej Karpathy's <a href=\"https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f\" target=\"_blank\" rel=\"noopener noreferrer\">LLM Wiki</a> idea: do not just summarize a book with a model, turn it into a browsable, linked, continuously extensible knowledge website.",
+        "hero.github": "View on GitHub",
+        "hero.guide": "Read setup guide",
+        "visual.input": "Input",
+        "visual.syncing": "Syncing",
+        "visual.output": "Linked graph",
+        "how.title": "The automation loop",
+        "how.lead": "Start with one right-click in Obsidian. Upload, processing, and sync happen in the background.",
+        "how.step1.title": "Trigger",
+        "how.step1.body": "Right-click a PDF in the Obsidian file explorer",
+        "how.step2.title": "Upload",
+        "how.step2.body": "The Worker writes the source file to Cloudflare R2",
+        "how.step3.title": "Process",
+        "how.step3.body": "The LLM extracts entities, relationships, chapters, and themes",
+        "how.step4.title": "Sync",
+        "how.step4.body": "Generated wiki notes are written back to your vault",
+        "creates.treeTitle": "Vault / Book_Wikis",
+        "creates.noteTitle": "Fugui",
+        "creates.tag1": "Character",
+        "creates.tag2": "Importance: Major",
+        "creates.noteBody": "Fugui is the central character in [[To Live]]. Generated notes connect him with [[Jiazhen]], [[Youqing]], [[Fengxia]], land, famine, and social change, forming an Obsidian graph you can keep reading and extending.",
+        "creates.quote": "\"People live for living itself, not for anything beyond living.\"",
+        "creates.relationships": "Relationships",
+        "creates.rel1": "Husband of [[Jiazhen]]",
+        "creates.rel2": "Theme: [[Suffering and fate]]",
+        "creates.rel3": "Narrative witness across the whole book",
+        "value.title": "Built for book wikis, <span class=\"accent\">not just summaries.</span>",
+        "value.body1": "Inspired by Karpathy's LLM Wiki idea, Book Wiki Sync is not trying to produce a one-off summary. It builds a browsable knowledge space for a book by splitting characters, places, concepts, and chapters into atomic notes while preserving the connections that make the book meaningful.",
+        "value.body2": "The result is not one long summary. It is a set of linked notes that can plug directly into a Zettelkasten or second-brain workflow.",
+        "value.card1.title": "Relational",
+        "value.card1.body": "Every entity is a node, and every mention can become a wikilink.",
+        "value.card2.title": "Atomic",
+        "value.card2.body": "Small focused notes that are easy to cite, embed, and reorganize.",
+        "arch.title": "Technical architecture",
+        "arch.lead": "Edge-first processing pipeline",
+        "arch.worker": "Cloudflare Worker",
+        "features.f1.title": "Fast conversion",
+        "features.f1.body": "PDF to Markdown-ish source.md, keeping the intermediate source inspectable.",
+        "features.f2.title": "Chinese support",
+        "features.f2.body": "Optimized for Chinese books, names, chapter titles, and wiki formatting.",
+        "features.f3.title": "Auto wikilinks",
+        "features.f3.body": "Cross-reference entities and themes with Obsidian wikilink syntax.",
+        "features.f4.title": "R2 persistence",
+        "features.f4.body": "Source files, job status, and outputs stay in your Cloudflare account.",
+        "features.f5.title": "Long book handling",
+        "features.f5.body": "Long PDFs are split into chapters or logical chunks suitable for LLM calls.",
+        "features.f6.title": "Obsidian plugin",
+        "features.f6.body": "Trigger processing from the file menu and mark chapters as read.",
+        "features.f7.title": "Self-hosted",
+        "features.f7.body": "Runs on your own Cloudflare account and LLM API key.",
+        "features.f8.title": "Templated output",
+        "features.f8.body": "Generate chapter, character, place, theme, part, and index notes.",
+        "req.title": "Requirements",
+        "req.r1.title": "Cloudflare account",
+        "req.r1.body": "Workers, R2, KV, and Queues need to be enabled.",
+        "req.r2.title": "LLM API key",
+        "req.r2.body": "Any OpenAI-compatible Chat Completions endpoint is supported.",
+        "req.r3.title": "Obsidian Desktop",
+        "req.r3.body": "The community plugin triggers processing and sync from your local vault.",
+        "limits.title": "Current limitations",
+        "limits.l1": "PDFs must contain extractable text; built-in OCR is not included yet.",
+        "limits.l2": "Long books can create meaningful token costs depending on your model provider.",
+        "limits.l3": "Initial Worker deployment requires basic command-line setup.",
+        "limits.l4": "The current focus is PDF book wiki generation and vault sync.",
+        "cta.title": "Start building your private library graph",
+        "cta.body": "Let automation handle structural note-taking so you can focus on reading, connecting, and thinking.",
+        "cta.deploy": "Deploy to Cloudflare",
+        "cta.docs": "View docs",
+        "footer.docs": "Docs",
+        "footer.github": "GitHub",
+        "footer.community": "Community",
+        "footer.privacy": "Privacy"
+      }
+    };
+
+    function applyLanguage(lang) {
+      const activeLang = translations[lang] ? lang : "zh";
+      document.documentElement.lang = activeLang === "zh" ? "zh-CN" : "en";
+      document.title = translations[activeLang]["meta.title"];
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const value = translations[activeLang][node.dataset.i18n];
+        if (value === undefined) return;
+        if (value.includes("<")) node.innerHTML = value;
+        else node.textContent = value;
+      });
+      document.querySelectorAll("[data-lang]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.lang === activeLang);
+      });
+      localStorage.setItem("book-wiki-sync-language", activeLang);
+    }
+
+    document.querySelectorAll("[data-lang]").forEach((button) => {
+      button.addEventListener("click", () => applyLanguage(button.dataset.lang));
+    });
+
+    applyLanguage(localStorage.getItem("book-wiki-sync-language") || "zh");
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+.DS_Store
+node_modules/
+dist/
+build/
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
+
+# Obsidian local plugin state
+data.json
+sync-state.json
+
+# Cloudflare local/private config
+worker/wrangler.toml
+
+# Logs and caches
+*.log
+.cache/
+.turbo/

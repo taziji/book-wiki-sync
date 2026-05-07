@@ -1,0 +1,9 @@
+{
+	"id": "book-wiki-sync",
+	"name": "Book Wiki Sync",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"description": "Generate Chinese Obsidian book wikis from PDFs, sync vaults with R2, and mark chapters as read.",
+	"author": "chi",
+	"isDesktopOnly": false
+}

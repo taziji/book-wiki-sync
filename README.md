@@ -10,7 +10,6 @@ Introduction website: [https://llm-wiki.top/](https://llm-wiki.top/)
 
 - `plugin/`: Obsidian community plugin for PDF upload, R2 vault sync, and chapter read markers.
 - `worker/`: Cloudflare Worker pipeline that extracts PDF text, calls an OpenAI-compatible LLM, and writes generated wiki notes.
-- `website/`: static landing page with no build step and no remote assets.
 
 ## Core Features
 
@@ -28,7 +27,6 @@ Introduction website: [https://llm-wiki.top/](https://llm-wiki.top/)
 book-wiki-sync/
 ├── plugin/    # Obsidian plugin
 ├── worker/    # Cloudflare Worker processor
-├── website/   # Static website
 └── docs/      # Project docs
 ```
 
@@ -136,12 +134,6 @@ Worker:
 ```bash
 cd worker
 npm run build
-```
-
-Website:
-
-```bash
-open website/index.html
 ```
 
 ## License

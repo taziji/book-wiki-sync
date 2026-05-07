@@ -20,12 +20,6 @@ npm install
 npm run build
 ```
 
-Website:
-
-```bash
-open website/index.html
-```
-
 ## Pull Request Checklist
 
 - Keep the plugin, Worker, and docs aligned.

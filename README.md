@@ -4,6 +4,8 @@ Book Wiki Sync turns PDF books into linked Obsidian book wikis.
 
 It is inspired by Andrej Karpathy's [LLM Wiki idea](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): instead of asking an LLM for a one-shot summary, use it to build a browsable, interconnected knowledge structure around a source text.
 
+Introduction website: [https://llm-wiki.top/](https://llm-wiki.top/)
+
 ## What It Includes
 
 - `plugin/`: Obsidian community plugin for PDF upload, R2 vault sync, and chapter read markers.
